@@ -1,6 +1,6 @@
 import cv2
 import sys
-
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import time # time.time() to get time
@@ -51,6 +51,7 @@ class TempTracker:
         self.kp1, self.des1 = self.detector.detectAndCompute(self.template,None)        
 
         self.flag = 0 # homography estimated flag
+        self.scalebuf = []
         
     def get_des(self,name):
         return {
@@ -102,9 +103,16 @@ class TempTracker:
             self.H, self.mask = cv2.findHomography(pts1, pts2, cv2.RANSAC,3.0)
             if self.check_mask():
                 self.get_rect()
+                self.get_scale()
                 self.flag = 1
-                 
+        
+        if self.flag:
+            self.scalebuf.append(self.scale)
+        else:
+            self.scalebuf.append(0)
         cv2.imshow("detected",self.show)
+        
+        
         
     def get_rect(self):
             h,w = self.template.shape
@@ -121,7 +129,24 @@ class TempTracker:
             return 1
         else:
             return 0
+    
+    def get_scale(self):
+        sq = self.H[0:1,0:1]*self.H[0:1,0:1]
+        self.scale = math.sqrt(sq.sum()/2)
 
+    def show_scale(self):
+        leng = len(self.scalebuf)
+        fig = plt.figure()
+        plt.plot(np.arange(0,leng,1),np.array(self.scalebuf),label="Each Process time")
+        plt.title("Scaling")
+        plt.xlabel("Sequence")
+        plt.ylabel("scaling")
+        plt.ylim(0,2)
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+        
 if __name__ == '__main__' :
  
     DES = sys.argv[1:] # argument is list
@@ -159,10 +184,11 @@ if __name__ == '__main__' :
         tracker.track(frame)
         T.check()
         
-        # Exit if ESC pressed
+        # Exit if "Q" pressed
         k = cv2.waitKey(1) & 0xff
         if k == ord('q') :
-            T.show()    
+            T.show()
+            tracker.show_scale()
             break
         if k == ord('s') :
             cv2.imwrite('result.png',tracker.show)    
