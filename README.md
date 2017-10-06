@@ -14,7 +14,9 @@ python ObjTracking.py <keypoint descriptor>
 When you stopped program, you can see the calclation time.
 
 # DEMO
-![SampleTrackingResults](https://imgur.com/a/bIKcM)
+Sample Result.
+
+<img src="https://github.com/YoshiRi/TemplateTracker/blob/master/results/result.png" width="500">
 
 In my case, it tooks about 100ms to calcurate SIFT transformation. 
-![Timeconsumption](https://imgur.com/a/bIKcM)
+<img src="https://github.com/YoshiRi/TemplateTracker/blob/master/results/siftcalc.png" width="400">
