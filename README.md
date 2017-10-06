@@ -1,6 +1,8 @@
 # Image Template Tracker
 Template Tracking using Opencv and Python (C++)
 
+Worked on Ubuntu 16.04 LTS python2.7 opencv 3.2.0
+
 # Description
 Given your template in "template.png" file and tracking this planer template using Homography transformation estimation with various types of key point descriptors.
 
