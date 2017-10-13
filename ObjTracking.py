@@ -52,6 +52,8 @@ class TempTracker:
 
         self.flag = 0 # homography estimated flag
         self.scalebuf = []
+        self.scale = 0
+        self.H = np.eye(3,dtype=np.float32)
         
     def get_des(self,name):
         return {
@@ -123,9 +125,9 @@ class TempTracker:
     
     def check_mask(self):
         self.inliner = np.count_nonzero(self.mask)
-        print("inliner : "+str(self.inliner))
+        print("inliner : "+str(self.inliner)+" in "+str(len(self.mask)))
         #self.total = self.mask.size
-        if self.inliner > 4:
+        if self.inliner > len(self.mask)*0.4:
             return 1
         else:
             return 0
@@ -145,10 +147,71 @@ class TempTracker:
         plt.legend()
         plt.grid()
         plt.show()
+        
+    def ctrack(self,img):
+        if len(img.shape) > 2: #if color then convert BGR to GRAY
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        print(len(self.kp1))
+        kp2,des2 = self.detector.detectAndCompute(img,None)
+        if len(kp2) < 5:
+            return
+            
+        matches = self.bf.knnMatch(self.des1,des2,k=2)
+        good = []
+        pts1 = []
+        pts2 = []
+        gdes2 = []
+        count = 0
+        for m,n in matches:      
+            if m.distance < 0.6*n.distance:
+                good.append(kp2[m.trainIdx])
+                pts2.append(kp2[m.trainIdx].pt)
+                gdes2.append(des2[m.trainIdx])
+                pts1.append(self.kp1[m.queryIdx].pt)
+                count += 1
+        pts1_ = np.float32(pts1)
+        pts2_ = np.float32(pts2)
+        gdes2 = np.array(gdes2)
+               
+        self.flag = 0
+        self.show = img
+
+        if count > 4:
+            self.dH, self.mask = cv2.findHomography(pts1_, pts2_, cv2.RANSAC,3.0)
+            if self.check_mask():
+                self.H = np.dot(self.dH, self.H)
+                self.get_rect()
+                self.get_scale()
+                self.flag = 1
+                self.getnewtemp(img)
+        if self.flag:
+            self.scalebuf.append(self.scale)
+        else:
+            self.scalebuf.append(0)
+        cv2.imshow("detected",self.show)
+        
+    def getnewtemp(self,img):
+        hei, wid = self.show.shape
+        ymin = max(math.floor(self.rect[:,0,1].min()),0)
+        ymax = min(math.floor(self.rect[:,0,1].max()),hei-1)
+        xmin = max(math.floor(self.rect[:,0,0].min()),0)
+        xmax = min(math.floor(self.rect[:,0,0].max()),wid-1)
+        temp = img[ymin:ymax,xmin:xmax]
+        dH = np.eye(3,dtype=np.float32)
+        dH[0,2]=-xmin
+        dH[1,2]=-ymin
+        self.H = np.dot(dH,self.H)
+        print(str(ymin)+" "+str(ymax)+" "+str(xmin)+" "+str(xmax))
+        print(temp)
+        self.kp1, self.des1 = self.detector.detectAndCompute(temp,None) 
+        cv2.imshow("template",temp)
 
         
 if __name__ == '__main__' :
- 
+    print("Opencv Version is...")
+    print(cv2.__version__)
+    
     DES = sys.argv[1:] # argument is list
     if DES == []:
         DES = ['ORB']
@@ -166,7 +229,6 @@ if __name__ == '__main__' :
     if not ok:
         print 'Cannot read video file'
         sys.exit()
-     
     # read template
     temp = cv2.imread("object.png")
     cv2.imshow("template",temp)
@@ -182,6 +244,7 @@ if __name__ == '__main__' :
         
         # Tracking Object
         tracker.track(frame)
+        #tracker.ctrack(frame) # continuous tracker
         T.check()
         
         # Exit if "Q" pressed
