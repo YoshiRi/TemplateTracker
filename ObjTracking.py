@@ -178,9 +178,10 @@ class TempTracker:
         self.show = img
 
         if count > 4:
-            self.dH, self.mask = cv2.findHomography(pts1_, pts2_, cv2.RANSAC,3.0)
+            self.dH2, self.mask = cv2.findHomography(pts1_, pts2_, cv2.RANSAC,3.0)
             if self.check_mask():
                 self.H = np.dot(self.dH, self.H)
+                self.dH = np.dot(self.dH2, self.dH1)
                 self.get_rect()
                 self.get_scale()
                 self.flag = 1
@@ -198,10 +199,10 @@ class TempTracker:
         xmin = max(math.floor(self.rect[:,0,0].min()),0)
         xmax = min(math.floor(self.rect[:,0,0].max()),wid-1)
         temp = img[ymin:ymax,xmin:xmax]
-        dH = np.eye(3,dtype=np.float32)
-        dH[0,2]=-xmin
-        dH[1,2]=-ymin
-        self.H = np.dot(dH,self.H)
+        self.dH1 = np.eye(3,dtype=np.float32)
+        self.dH1[0,2]=-xmin
+        self.dH1[1,2]=-ymin
+        self.H = np.dot(self.dH1,self.H)
         print(str(ymin)+" "+str(ymax)+" "+str(xmin)+" "+str(xmax))
         print(temp)
         self.kp1, self.des1 = self.detector.detectAndCompute(temp,None) 
@@ -243,8 +244,7 @@ if __name__ == '__main__' :
             break
         
         # Tracking Object
-        tracker.track(frame)
-        #tracker.ctrack(frame) # continuous tracker
+        tracker.ctrack(frame)
         T.check()
         
         # Exit if "Q" pressed
