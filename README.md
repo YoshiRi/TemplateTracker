@@ -7,13 +7,20 @@ Worked on Ubuntu 16.04 LTS python2.7 opencv 3.2.0
 Given your template in "template.png" file and tracking this planer template using Homography transformation estimation with various types of key point descriptors.
 
 # How to use
-
+## python version
 ```
 python ObjTracking.py <keypoint descriptor>
 ```
 \<keypoint descriptor\> can be ORB, SIFT, SURF, AKAZE, KAZE feature methods.
 
 When you stopped program, you can see the calclation time.
+
+## opencv cuda version
+Do following to compile and just run the program.
+```
+g++ -ggdb TempTrackGPU.cpp `pkg-config --cflags --libs opencv`
+```
+It only support SURF with cuda8.0, and you need opencv3 compiled with cuda.
 
 # DEMO
 Sample Result.
