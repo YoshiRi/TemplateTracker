@@ -49,12 +49,16 @@ class TempTracker:
         self.template = temp
         #self.imsize = np.shape(self.template)
         self.kp1, self.des1 = self.detector.detectAndCompute(self.template,None)        
-
+        self.kpb,self.desb = self.kp1, self.des1
         self.flag = 0 # homography estimated flag
         self.scalebuf = []
         self.scale = 0
         self.H = np.eye(3,dtype=np.float32)
-        
+        self.dH1 = np.eye(3,dtype=np.float32)
+        self.dH2 = np.eye(3,dtype=np.float32)
+        self.matches = []        
+        self.inliers = []        
+
     def get_des(self,name):
         return {
             'ORB': cv2.ORB_create(nfeatures=500,scoreType=cv2.ORB_HARRIS_SCORE),
@@ -100,6 +104,7 @@ class TempTracker:
         
         self.flag = 0
         self.show = img
+        self.matches.append(count)        
 
         if count > 4:
             self.H, self.mask = cv2.findHomography(pts1, pts2, cv2.RANSAC,3.0)
@@ -110,8 +115,11 @@ class TempTracker:
         
         if self.flag:
             self.scalebuf.append(self.scale)
+            self.inliers.append(self.inliner)
         else:
             self.scalebuf.append(0)
+            self.inliers.append(0)
+
         cv2.imshow("detected",self.show)
         
         
@@ -139,25 +147,32 @@ class TempTracker:
     def show_scale(self):
         leng = len(self.scalebuf)
         fig = plt.figure()
-        plt.plot(np.arange(0,leng,1),np.array(self.scalebuf),label="Each Process time")
+        plt.plot(np.arange(0,leng,1),np.array(self.scalebuf),label="Scale")
         plt.title("Scaling")
         plt.xlabel("Sequence")
         plt.ylabel("scaling")
         plt.ylim(0,2)
         plt.legend()
         plt.grid()
+        fig2 = plt.figure()
+        plt.plot(np.arange(0,leng,1),np.array(self.inliers),label="Inlier")
+        plt.plot(np.arange(0,leng,1),np.array(self.matches),label="Match")
+        plt.legend()
+        plt.grid()
         plt.show()
+
         
     def ctrack(self,img):
         if len(img.shape) > 2: #if color then convert BGR to GRAY
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        print(len(self.kp1))
+        #print(len(self.kp1))
         kp2,des2 = self.detector.detectAndCompute(img,None)
         if len(kp2) < 5:
             return
-            
-        matches = self.bf.knnMatch(self.des1,des2,k=2)
+        
+        # match with buff image    
+        matches = self.bf.knnMatch(self.desb,des2,k=2)
         good = []
         pts1 = []
         pts2 = []
@@ -168,19 +183,20 @@ class TempTracker:
                 good.append(kp2[m.trainIdx])
                 pts2.append(kp2[m.trainIdx].pt)
                 gdes2.append(des2[m.trainIdx])
-                pts1.append(self.kp1[m.queryIdx].pt)
+                pts1.append(self.kpb[m.queryIdx].pt)
                 count += 1
         pts1_ = np.float32(pts1)
         pts2_ = np.float32(pts2)
         gdes2 = np.array(gdes2)
-               
+
+        self.matches.append(count)               
         self.flag = 0
         self.show = img
 
         if count > 4:
             self.dH2, self.mask = cv2.findHomography(pts1_, pts2_, cv2.RANSAC,3.0)
             if self.check_mask():
-                self.H = np.dot(self.dH, self.H)
+                self.H = np.dot(self.dH2, self.H)
                 self.dH = np.dot(self.dH2, self.dH1)
                 self.get_rect()
                 self.get_scale()
@@ -188,8 +204,11 @@ class TempTracker:
                 self.getnewtemp(img)
         if self.flag:
             self.scalebuf.append(self.scale)
+            self.inliers.append(self.inliner)
         else:
             self.scalebuf.append(0)
+            self.inliers.append(0)
+
         cv2.imshow("detected",self.show)
         
     def getnewtemp(self,img):
@@ -203,12 +222,14 @@ class TempTracker:
         self.dH1[0,2]=-xmin
         self.dH1[1,2]=-ymin
         self.H = np.dot(self.dH1,self.H)
-        print(str(ymin)+" "+str(ymax)+" "+str(xmin)+" "+str(xmax))
-        print(temp)
-        self.kp1, self.des1 = self.detector.detectAndCompute(temp,None) 
+        self.kpb, self.desb = self.detector.detectAndCompute(temp,None) 
         cv2.imshow("template",temp)
 
-        
+    def refresh(self,img):
+        self.track(img)
+        self.kpb, self.desb = self.kp1, self.des1
+
+
 if __name__ == '__main__' :
     print("Opencv Version is...")
     print(cv2.__version__)
@@ -244,7 +265,8 @@ if __name__ == '__main__' :
             break
         
         # Tracking Object
-        tracker.ctrack(frame)
+        tracker.track(frame)
+        #tracker.ctrack(frame) # continuous tracker
         T.check()
         
         # Exit if "Q" pressed
@@ -256,3 +278,5 @@ if __name__ == '__main__' :
         if k == ord('s') :
             cv2.imwrite('result.png',tracker.show)    
             break
+        if k == ord('r') :
+            tracker.refresh(frame)
