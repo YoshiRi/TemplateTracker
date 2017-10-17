@@ -55,6 +55,7 @@ public:
     void track(cv::Mat);
     void get_rect();
     void saveimg();
+    int show();
 };
 
 // constructor
@@ -131,7 +132,7 @@ void TempTracker_GPU::track(cv::Mat now){
     }
     // Show rectangle
     TempTracker_GPU::get_rect();
-    cv::imshow("tracked",_show);
+
 }
 
 
@@ -154,6 +155,14 @@ void TempTracker_GPU::get_rect()
 			_scene_corners[0] ,
 			Scalar(255, 0, 0), 4);
 
+}
+
+int TempTracker_GPU::show()
+{
+    cv::imshow("tracked",_show);
+    int ch;
+    ch = cv::waitKey(1);
+    return ch;
 }
 
 // save image
@@ -217,7 +226,7 @@ int main(){
         tracker.track(gray);
                 
         char ch;
-        ch = waitKey(1);
+        ch = (char) tracker.show();
         if(ch == 'q'){
             break;
         }else if(ch == 's'){
