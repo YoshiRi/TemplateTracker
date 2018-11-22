@@ -39,11 +39,16 @@ It only support SURF with cuda8.0, and you need opencv3 compiled with cuda.
 
 # DEMO
 
+- Template image(in white box).
 <img src="https://github.com/YoshiRi/TemplateTracker/blob/master/results/result.png" width="500">
 
-
+- Tracked result looks like:
 ![demo](https://github.com/YoshiRi/TemplateTracker/blob/master/results/demovideo.gif)
 
-In my laptop with corei5 processor, it took about 100ms to calculation SIFT transformation. 
+- Calculation time
+ 
 
 <img src="https://github.com/YoshiRi/TemplateTracker/blob/master/results/siftcalc.png" width="400">
+
+ 
+ In my laptop with corei5 processor, it took about 100ms to calculation SIFT transformation. 
