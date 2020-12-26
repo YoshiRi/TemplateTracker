@@ -32,7 +32,10 @@ class Checktime:
 
 
 class TempTracker:
-
+    """
+    input: image and descriptor
+    
+    """
     def __init__(self,temp,descriptor = 'ORB'):
         
         # switch detector and matcher
@@ -50,7 +53,7 @@ class TempTracker:
         #self.imsize = np.shape(self.template)
         self.kp1, self.des1 = self.detector.detectAndCompute(self.template,None)        
         self.kpb,self.desb = self.kp1, self.des1
-        self.flag = 0 # homography estimated flag
+        self.findHomography = False # homography estimated flag
         self.scalebuf = []
         self.scale = 0
         self.H = np.eye(3,dtype=np.float32)
@@ -77,7 +80,7 @@ class TempTracker:
             'SURF' : cv2.BFMatcher()
         }.get(name, 0)  
     
-    def track(self,img):
+    def get_goodmatches(self, img):
         if len(img.shape) > 2: #if color then convert BGR to GRAY
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
              
@@ -101,8 +104,12 @@ class TempTracker:
 
         pts1 = np.float32(pts1)
         pts2 = np.float32(pts2)
-        
-        self.flag = 0
+        return pts1, pts2, count
+
+    def track(self,img):
+        pts1, pts2, count = self.get_goodmatches(img):
+
+        self.findHomography = False
         self.show = img
         self.matches.append(count)        
 
@@ -111,9 +118,9 @@ class TempTracker:
             if self.check_mask():
                 self.get_rect()
                 self.get_scale()
-                self.flag = 1
+                self.findHomography = True
         
-        if self.flag:
+        if self.findHomography:
             self.scalebuf.append(self.scale)
             self.inliers.append(self.inliner)
         else:
@@ -121,8 +128,6 @@ class TempTracker:
             self.inliers.append(0)
 
         cv2.imshow("detected",self.show)
-        
-        
         
     def get_rect(self):
             h,w = self.template.shape
@@ -161,7 +166,15 @@ class TempTracker:
         plt.grid()
         plt.show()
 
-        
+    def refresh(self,img):
+        self.track(img)
+        self.kpb, self.desb = self.kp1, self.des1
+
+# Minor change
+class ContinuousTempTracker(TempTracker):
+    """
+    Update template when get good matchings
+    """
     def ctrack(self,img):
         if len(img.shape) > 2: #if color then convert BGR to GRAY
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -190,7 +203,7 @@ class TempTracker:
         gdes2 = np.array(gdes2)
 
         self.matches.append(count)               
-        self.flag = 0
+        self.findHomography = False
         self.show = img
 
         if count > 4:
@@ -200,9 +213,9 @@ class TempTracker:
                 self.dH = np.dot(self.dH2, self.dH1)
                 self.get_rect()
                 self.get_scale()
-                self.flag = 1
+                self.findHomography = True
                 self.getnewtemp(img)
-        if self.flag:
+        if self.findHomography:
             self.scalebuf.append(self.scale)
             self.inliers.append(self.inliner)
         else:
@@ -225,34 +238,48 @@ class TempTracker:
         self.kpb, self.desb = self.detector.detectAndCompute(temp,None) 
         cv2.imshow("template",temp)
 
-    def refresh(self,img):
-        self.track(img)
-        self.kpb, self.desb = self.kp1, self.des1
 
+## main function for parser
+import argparse
+def load_args():
+    parser = argparse.ArgumentParser(description='')
 
+    parser.add_argument('-f','--file', help='input video file or video port',default=0) 
+    parser.add_argument('-t','--template', help='template filename', default="object.png")  
+    parser.add_argument('-d','--descriptor', help='feature descripter', default="ORB")  
+
+    args = parser.parse_args()
+    
+    # catch the input like "1"
+    vfile = int(args.file) if args.file.isdigit() else args.file
+
+    return vfile, args.template, args.descriptor
+
+## Main Function
 if __name__ == '__main__' :
     print("Opencv Version is...")
     print(cv2.__version__)
     
-    DES = sys.argv[1:] # argument is list
-    if DES == []:
-        DES = ['ORB']
-    DES = "".join(DES)    
+
+    vfile, template, DES = main()
     print("Using "+DES+" Detector! \n")
-    video = cv2.VideoCapture(0)
+
+    # video reader
+    video = cv2.VideoCapture(vfile)
  
     # Exit if video not opened.
     if not video.isOpened():
-        print "Could not open video"
+        print("Could not open video!")
         sys.exit()
  
     # Read first frame.
     ok, frame = video.read()
     if not ok:
-        print 'Cannot read video file'
+        print("Cannot read video file")
         sys.exit()
+    
     # read template
-    temp = cv2.imread("object.png")
+    temp = cv2.imread(template)
     cv2.imshow("template",temp)
     
     tracker = TempTracker(temp,DES)
@@ -266,7 +293,6 @@ if __name__ == '__main__' :
         
         # Tracking Object
         tracker.track(frame)
-        #tracker.ctrack(frame) # continuous tracker
         T.check()
         
         # Exit if "Q" pressed
