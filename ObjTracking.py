@@ -107,7 +107,7 @@ class TempTracker:
         return pts1, pts2, count
 
     def track(self,img):
-        pts1, pts2, count = self.get_goodmatches(img):
+        pts1, pts2, count = self.get_goodmatches(img)
 
         self.findHomography = False
         self.show = img
@@ -261,7 +261,7 @@ if __name__ == '__main__' :
     print(cv2.__version__)
     
 
-    vfile, template, DES = main()
+    vfile, template, DES = load_args()
     print("Using "+DES+" Detector! \n")
 
     # video reader
@@ -280,7 +280,7 @@ if __name__ == '__main__' :
     
     # read template
     temp = cv2.imread(template)
-    cv2.imshow("template",temp)
+    exit("can not open template!") if temp is None else cv2.imshow("template",temp)
     
     tracker = TempTracker(temp,DES)
     T = Checktime()
@@ -293,7 +293,7 @@ if __name__ == '__main__' :
         
         # Tracking Object
         tracker.track(frame)
-        T.check()
+        #T.check()
         
         # Exit if "Q" pressed
         k = cv2.waitKey(1) & 0xff
