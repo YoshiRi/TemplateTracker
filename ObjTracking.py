@@ -91,13 +91,17 @@ class TempTracker:
         }.get(name, 0)  
     
     def get_goodmatches(self, img):
+        """
+        input: image to compare with template
+        output: matched features in each images and the number of matched features
+        """
         if len(img.shape) > 2: #if color then convert BGR to GRAY
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
              
         kp2,des2 = self.detector.detectAndCompute(img,None)
-        print(len(kp2))
+        # if feature number is not enough
         if len(kp2) < 5:
-            return
+            return [], [], 0
             
         matches = self.bf.knnMatch(self.des1,des2,k=2)
         good = []
@@ -123,6 +127,7 @@ class TempTracker:
         self.show = img
         self.matches.append(count)        
 
+        # homography extraction
         if count > 4:
             self.H, self.mask = cv2.findHomography(pts1, pts2, cv2.RANSAC,3.0)
             if self.check_mask():
