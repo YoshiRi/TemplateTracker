@@ -5,6 +5,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time # time.time() to get time
 
+# read image in japanese direcotry
+def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
+    try:
+        n = np.fromfile(filename, dtype)
+        img = cv2.imdecode(n, flags)
+        return img
+    except Exception as e:
+        print(e)
+        return None
+
 class Checktime:
     def __init__(self):
         self.checktime = [0]
@@ -278,8 +288,8 @@ if __name__ == '__main__' :
         print("Cannot read video file")
         sys.exit()
     
-    # read template
-    temp = cv2.imread(template)
+    # read template: enable to read files with 2bytes chalactors 
+    temp = imread(template)
     exit("can not open template!") if temp is None else cv2.imshow("template",temp)
     
     tracker = TempTracker(temp,DES)
