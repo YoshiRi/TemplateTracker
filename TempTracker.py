@@ -70,11 +70,12 @@ class TempTracker:
         self.dH1 = np.eye(3,dtype=np.float32)
         self.dH2 = np.eye(3,dtype=np.float32)
         self.matches = []        
-        self.inliers = []        
+        self.inliers = []
+        self.good = [] # good matches
 
     def get_des(self,name):
         return {
-            'ORB': cv2.ORB_create(nfeatures=500,scoreType=cv2.ORB_HARRIS_SCORE),
+            'ORB': cv2.ORB_create(nfeatures=1000,scoreType=cv2.ORB_HARRIS_SCORE),
             'AKAZE': cv2.AKAZE_create(),
             'KAZE' : cv2.KAZE_create(),
             'SIFT' : cv2.xfeatures2d.SIFT_create(),
@@ -90,6 +91,7 @@ class TempTracker:
             'SURF' : cv2.BFMatcher()
         }.get(name, 0)  
     
+    
     def get_goodmatches(self, img):
         """
         input: image to compare with template
@@ -98,27 +100,39 @@ class TempTracker:
         if len(img.shape) > 2: #if color then convert BGR to GRAY
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
              
-        kp2,des2 = self.detector.detectAndCompute(img,None)
-        # if feature number is not enough
-        if len(kp2) < 5:
+        self.kp2, self.des2 = self.detector.detectAndCompute(img,None)
+
+        # if feature number is not enough then skip
+        if len(self.kp2) < 5:
             return [], [], 0
-            
-        matches = self.bf.knnMatch(self.des1,des2,k=2)
-        good = []
+
+
+        matches = self.bf.knnMatch(self.des1,self.des2,k=2)
+        self.good = []
         pts1 = []
         pts2 = []
-   
+
         count = 0
         for m,n in matches:      
             if m.distance < 0.5*n.distance:
-                good.append([m])
-                pts2.append(kp2[m.trainIdx].pt)
+                self.good.append([m])
+                pts2.append(self.kp2[m.trainIdx].pt)
                 pts1.append(self.kp1[m.queryIdx].pt)
                 count += 1
 
         pts1 = np.float32(pts1)
         pts2 = np.float32(pts2)
         return pts1, pts2, count
+
+    def draw_matches(self, img):
+        _,_,count = self.get_goodmatches(img)
+        
+        if count:
+            matched_images = cv2.drawMatchesKnn(self.template, self.kp1, img, self.kp2, self.good, None, flags=2)
+            cv2.imshow("matched", matched_images)
+
+        cv2.imshow("current",cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+            
 
     def track(self,img):
         pts1, pts2, count = self.get_goodmatches(img)
